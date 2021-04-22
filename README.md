@@ -1,5 +1,5 @@
 # telegram-bot
-A (very) hacky and minimal telegram bot interface for Python.
+A (very) minimal telegram bot interface for Python.
 
 Usage:
 ```python

@@ -15,10 +15,10 @@ class TelegramBot:
     N_RETRIES = 10
     SESSION.mount('https://', HTTPAdapter(max_retries=N_RETRIES))
 
-    class BotError(Exception):
+    class TelegramBotError(Exception):
         pass
 
-    class NoResponseError(BotError):
+    class TelegramBotInteractionError(TelegramBotError):
         pass
 
     def __init__(self, bot_token: str) -> None:
@@ -39,6 +39,7 @@ class TelegramBot:
         n_retries = self.N_RETRIES if retry else 0
 
         kwargs = {
+            'method': 'POST' if post else 'GET',
             'url': self.base_api_url + method,
             'params': params,
             'files': files,
@@ -47,10 +48,7 @@ class TelegramBot:
         jn = None
 
         while True:
-            if post:
-                r = self.SESSION.post(**kwargs)
-            else:
-                r = self.SESSION.get(**kwargs)
+            r = self.SESSION.request(**kwargs)
 
             if (r.status_code == 200) and (r.headers.get('content-type') == 'application/json'):
                 jn = r.json()
@@ -64,12 +62,13 @@ class TelegramBot:
 
             if n_retries > 0:
                 n_retries -= 1
-                time.sleep(5)
+                time.sleep(2)
             else:
                 break
 
-        msg = f"could not get response for method {method}. Status code: {r.status_code} ({r.reason}), json: {jn}"
-        raise self.NoResponseError(msg)
+        msg = f"Could not get response for method {method}. Args: {kwargs}, status " \
+              f"code: {r.status_code} ({r.reason}), json: {jn}"
+        raise self.TelegramBotInteractionError(msg)
 
     def get_me(self) -> dict:
         method = 'getMe'
@@ -99,9 +98,20 @@ class TelegramBot:
 
         return self.base_file_url + file_path
 
-    def send_text_message(self, chat_id: Union[int, str], text: str) -> dict:
+    def send_text_message(
+            self,
+            chat_id: Union[int, str],
+            text: str,
+            parse_mode: str = 'html',
+            disable_notification: bool = False,
+    ) -> dict:
         method = 'sendMessage'
-        params = {'chat_id': chat_id, 'text': text}
+        params = {
+            'chat_id': chat_id,
+            'text': text,
+            'parse_mode': parse_mode,
+            'disable_notification': disable_notification,
+        }
 
         return self._interact(method, params, post=True)
 
@@ -111,12 +121,18 @@ class TelegramBot:
 
         try:
             return self._interact(method, params, post=True, retry=False)
-        except self.NoResponseError:
+        except self.TelegramBotInteractionError:
             return False
 
-    def send_file(self, chat_id: Union[int, str], file_path: Path, caption: Optional[str] = None) -> dict:
+    def send_file(
+            self,
+            chat_id: Union[int, str],
+            file_path: Path,
+            caption: Optional[str] = None,
+            parse_mode: str = 'html',
+    ) -> dict:
         method = 'sendDocument'
-        params = {'chat_id': chat_id}
+        params = {'chat_id': chat_id, 'parse_mode': parse_mode}
 
         if caption:
             params['caption'] = caption
@@ -127,10 +143,16 @@ class TelegramBot:
 
         return result
 
-    def send_image(self, chat_id: Union[int, str], image_fpath: Path, caption: Optional[str] = None) -> dict:
+    def send_image(
+            self,
+            chat_id: Union[int, str],
+            image_fpath: Path,
+            caption: Optional[str] = None,
+            parse_mode: str = 'html',
+    ) -> dict:
         method = 'sendPhoto'
 
-        params = {'chat_id': chat_id}
+        params = {'chat_id': chat_id, 'parse_mode': parse_mode}
 
         if caption:
             params['caption'] = caption
