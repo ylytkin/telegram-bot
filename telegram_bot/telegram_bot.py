@@ -75,11 +75,13 @@ class TelegramBot:
 
         return self._interact(method)
 
-    def get_updates(self, confirm_all: bool = False) -> List[dict]:
+    def get_updates(self, offset: Optional[int] = None, confirm_all: bool = False) -> List[dict]:
         method = 'getUpdates'
         params = {}
-
-        if confirm_all and self.last_update_id:
+        
+        if offset is not None:
+            params['offset'] = offset
+        elif confirm_all and self.last_update_id:
             params['offset'] = self.last_update_id + 1
 
         result = self._interact(method, params)
