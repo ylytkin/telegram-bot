@@ -26,8 +26,6 @@ class TelegramBot:
         self.base_api_url = f'https://api.telegram.org/bot{self.bot_token}/'
         self.base_file_url = f'https://api.telegram.org/file/bot{self.bot_token}/'
 
-        self.last_update_id = None
-
     def _interact(
             self,
             method: str,
@@ -75,19 +73,17 @@ class TelegramBot:
 
         return self._interact(method)
 
-    def get_updates(self, offset: Optional[int] = None, confirm_all: bool = False) -> List[dict]:
+    def get_updates(self, offset: Optional[int] = None, timeout: int = 0) -> List[dict]:
         method = 'getUpdates'
-        params = {}
+
+        params = {
+            'timeout': timeout,
+        }
         
         if offset is not None:
             params['offset'] = offset
-        elif confirm_all and self.last_update_id:
-            params['offset'] = self.last_update_id + 1
 
         result = self._interact(method, params)
-
-        if len(result) > 0:
-            self.last_update_id = result[-1]['update_id']
 
         return result
 
